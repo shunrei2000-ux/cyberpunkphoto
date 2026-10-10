@@ -1,0 +1,9 @@
+{
+  "appId": "com.shunrei2000ux.cyberpunkphoto",
+  "appName": "電脳写真機",
+  "webDir": "www",
+  "ios": {
+    "contentInset": "never",
+    "backgroundColor": "#0d0a1f"
+  }
+}

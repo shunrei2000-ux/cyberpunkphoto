@@ -601,6 +601,12 @@ $("cam").addEventListener("click",startCam);
 $("flip").addEventListener("click",function(){if(rec){setStatus("stRecBusy");return;}facing=facing==="environment"?"user":"environment";startCam();});
 $("share").addEventListener("click",function(){
   if(!lastBlob)return;
+  var cap=window.Capacitor;   /* inside the iPhone app: hand the file to the native share sheet (Save Image / Save Video) */
+  if(cap&&cap.isNativePlatform&&cap.isNativePlatform()&&cap.Plugins&&cap.Plugins.Filesystem&&cap.Plugins.Share){
+    var fr=new FileReader();fr.onload=function(){
+      cap.Plugins.Filesystem.writeFile({path:lastName,data:String(fr.result).split(",")[1],directory:"CACHE"})
+        .then(function(r){return cap.Plugins.Share.share({files:[r.uri]});}).catch(function(){});};
+    fr.readAsDataURL(lastBlob);return;}
   try{var f=new File([lastBlob],lastName,{type:lastBlob.type.split(";")[0]});
     if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f]}).catch(function(){});return;}}catch(e){}
   var a=document.createElement("a");a.href=URL.createObjectURL(lastBlob);a.download=lastName;document.body.appendChild(a);a.click();a.remove();
