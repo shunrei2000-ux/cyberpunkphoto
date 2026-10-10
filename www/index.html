@@ -176,7 +176,7 @@ body.cam.set .rack{display:flex}
         <div class="fields">
           <label class="check"><input type="checkbox" id="hud" checked><span data-t="hudOn"></span></label>
           <label class="field" for="caption"><span data-t="caption"></span><input type="text" id="caption" maxlength="32" value="NEO-TOKYO // SECTOR 07"></label>
-          <label class="field" for="kanji"><span data-t="kanji"></span><input type="text" id="kanji" maxlength="8" value="電脳都市"></label>
+          <label class="field" for="kanji"><span data-t="kanji"></span><input type="text" id="kanji" maxlength="8" value=""></label>
         </div>
       </div>
       <div class="bar camOnly"><button type="button" id="import" data-t="choose"></button><button type="button" id="lang2"></button></div>
@@ -247,7 +247,7 @@ var PRESETS=[
   {id:"alert",c:["#140008","#d1002c","#ffd0b0"]}
 ];
 var SLIDERS=[["tone",70],["ca",45],["glitch",35],["scan",40],["bloom",55],["noise",25],["contrast",40],["vig",50]];
-var state={preset:"neo",seed:7,hud:true,caption:"NEO-TOKYO // SECTOR 07",kanji:"電脳都市",fmt:"jpg"};
+var state={preset:"neo",seed:7,hud:true,caption:"NEO-TOKYO // SECTOR 07",kanji:"",fmt:"jpg"};
 SLIDERS.forEach(function(s){state[s[0]]=s[1];});
 
 var $=function(id){return document.getElementById(id);};
