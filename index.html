@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d0a1f">
+<style>:root{padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}body{margin:0}img{max-width:100%}[hidden]{display:none!important}</style>
+<title>電脳写真機</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Share+Tech+Mono&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap">
+<style>
+/* Layout: the photo/video is the stage (left, sticky); a quiet control rack sits beside it and stacks under it on phones. */
+:root{
+  color-scheme:dark;
+  --void:#0d0a1f; --panel:#161136; --raise:#211a4d; --line:#3b3080;
+  --ink:#ece7ff; --dim:#a79cd9;
+  --hot:#ff2e88; --ice:#2ef2ff; --volt:#ffe14a;
+  --display:"DotGothic16","Hiragino Kaku Gothic ProN","Yu Gothic",monospace;
+  --body:"Zen Kaku Gothic New","Hiragino Kaku Gothic ProN","Yu Gothic",sans-serif;
+  --mono:"Share Tech Mono",ui-monospace,Menlo,monospace;
+}
+*{box-sizing:border-box}
+html,body{background:var(--void)}
+body{color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.6}
+.wrap{max-width:1180px;margin:0 auto;padding-inline:16px;padding-block:20px 40px;display:flex;flex-direction:column;gap:18px}
+header{display:flex;align-items:baseline;gap:14px;flex-wrap:wrap}
+h1{font-family:var(--display);font-weight:400;font-size:clamp(26px,5vw,38px);margin:0;letter-spacing:.08em;line-height:1.1;
+  text-shadow:2px 0 var(--hot),-2px 0 var(--ice)}
+header p{margin:0;color:var(--dim);font-size:13px;flex:1 1 260px;min-width:0}
+#lang{font-size:13px;padding:5px 10px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:20px;align-items:start}
+.stage{position:sticky;top:calc(env(safe-area-inset-top,0px) + 12px);display:flex;flex-direction:column;gap:10px;min-width:0}
+.frame{position:relative;background:#06041180;border:1px solid var(--line);display:flex;justify-content:center;align-items:center;min-height:180px}
+.frame.drag{border-color:var(--volt)}
+#view{display:block;max-width:100%;max-height:74vh;width:auto;height:auto}
+.tag{position:absolute;left:50%;transform:translateX(-50%);top:-1px;font-family:var(--mono);font-size:11px;letter-spacing:.12em;background:var(--volt);color:#17123a;padding:1px 7px}
+.bar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.status{font-family:var(--mono);font-size:12px;color:var(--dim);min-height:1.4em;margin:0;min-width:0}
+button,.btn{font:inherit;font-weight:500;color:var(--ink);background:var(--raise);border:1px solid var(--line);padding:9px 14px;cursor:pointer;line-height:1.3}
+button:hover,.btn:hover{border-color:var(--ice)}
+button[aria-pressed="true"]{border-color:var(--volt);color:var(--volt)}
+.primary{background:var(--hot);border-color:var(--hot);color:#17061f;font-weight:700}
+.primary:hover{border-color:var(--ink)}
+#rec.on{background:var(--hot);border-color:var(--hot);color:#17061f;font-weight:700}
+:focus-visible{outline:2px solid var(--volt);outline-offset:2px}
+.btn:focus-within{outline:2px solid var(--volt);outline-offset:2px}
+.btn input{position:absolute;opacity:0;width:1px;height:1px}
+.rack{display:flex;flex-direction:column;gap:18px;background:var(--panel);border:1px solid var(--line);padding:16px;min-width:0}
+h2{font-family:var(--mono);font-weight:400;font-size:12px;letter-spacing:.18em;color:var(--ice);margin:0 0 8px}
+.presets{display:grid;grid-template-columns:repeat(auto-fill,minmax(88px,1fr));gap:8px}
+.preset{padding:0;display:flex;flex-direction:column;background:var(--raise);text-align:left}
+.preset i{display:block;height:22px}
+.preset span{padding:5px 6px;font-size:13px;line-height:1.25}
+.sliders{display:flex;flex-direction:column;gap:9px}
+.row{display:grid;grid-template-columns:6.4em minmax(0,1fr) 2.4em;gap:10px;align-items:center}
+.row label{font-size:13px}
+.row output{font-family:var(--mono);font-size:12px;color:var(--dim);text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--hot);margin:0;height:22px}
+.fields{display:flex;flex-direction:column;gap:9px}
+.field{display:grid;grid-template-columns:6.4em minmax(0,1fr);gap:10px;align-items:center;font-size:13px}
+input[type=text]{font:inherit;font-size:14px;color:var(--ink);background:var(--void);border:1px solid var(--line);padding:6px 8px;width:100%;min-width:0}
+.check{display:flex;gap:8px;align-items:center;font-size:13px}
+.check input{accent-color:var(--hot);width:16px;height:16px}
+.seg{display:flex}
+.seg button{padding:9px 10px;font-family:var(--mono);font-size:12px}
+.seg button+button{border-left:0}
+#fallback{border:1px solid var(--volt);padding:12px;display:flex;flex-direction:column;gap:8px}
+#fallback p{margin:0;font-size:13px}
+#fallback img,#fallback video{max-width:100%;max-height:30vh;display:block;align-self:flex-start}
+.ghost{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+@media (max-width:820px){
+  .grid{grid-template-columns:minmax(0,1fr)}
+  .stage{top:env(safe-area-inset-top,0px);background:var(--void);padding-block:6px;z-index:2}
+  #view{max-height:40vh}
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <h1>電脳写真機</h1>
+    <p data-t="intro"></p>
+    <button type="button" id="lang"></button>
+  </header>
+
+  <div class="grid">
+    <section class="stage" id="stage">
+      <div class="frame" id="frame">
+        <canvas id="view" width="900" height="600" role="img"></canvas>
+        <span class="tag" id="sampleTag">SAMPLE</span>
+      </div>
+      <div class="bar">
+        <label class="btn primary"><span data-t="choose"></span><input type="file" id="file" accept="image/*,video/*"></label>
+        <button type="button" id="compare" aria-pressed="false" data-t="original"></button>
+        <button type="button" id="cam" hidden></button>
+        <button type="button" id="flip" hidden></button>
+        <button type="button" id="play" hidden></button>
+        <button type="button" id="rec" hidden></button>
+      </div>
+      <div class="bar">
+        <span class="seg" role="group" id="fmtGroup">
+          <button type="button" id="fmtJpg" aria-pressed="true">JPG</button>
+          <button type="button" id="fmtPng" aria-pressed="false">PNG</button>
+        </span>
+        <button type="button" id="save"></button>
+      </div>
+      <p class="status" id="status" role="status" aria-live="polite"></p>
+      <div id="fallback" hidden>
+        <p id="fallbackMsg"></p>
+        <img id="fallbackImg" alt="" hidden>
+        <video id="fallbackVid" controls playsinline hidden></video>
+        <button type="button" id="share" class="primary" hidden></button>
+      </div>
+    </section>
+
+    <section class="rack" id="rack">
+      <div>
+        <h2 data-t="hColor"></h2>
+        <div class="presets" id="presets"></div>
+      </div>
+      <div>
+        <h2 data-t="hFx"></h2>
+        <div class="sliders" id="sliders"></div>
+      </div>
+      <div class="bar">
+        <button type="button" id="reroll" data-t="reroll"></button>
+        <button type="button" id="lucky" data-t="lucky"></button>
+        <button type="button" id="reset" data-t="reset"></button>
+      </div>
+      <div>
+        <h2 data-t="hHud"></h2>
+        <div class="fields">
+          <label class="check"><input type="checkbox" id="hud" checked><span data-t="hudOn"></span></label>
+          <label class="field" for="caption"><span data-t="caption"></span><input type="text" id="caption" maxlength="32" value="NEO-TOKYO // SECTOR 07"></label>
+          <label class="field" for="kanji"><span data-t="kanji"></span><input type="text" id="kanji" maxlength="8" value="電脳都市"></label>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+var T={
+en:{intro:"Pick a photo or video and turn it into a neon, glitched-out night. Everything is processed on your device.",
+ choose:"Choose photo / video",original:"Original",play:"Play",pause:"Pause",rec:"Record video",stop:"Stop & save",
+ savePhoto:"Save photo",saveFrame:"Save frame",fallback:"Direct saving isn't available here. Press and hold (or right-click) the result below to save it.",
+ hColor:"COLOR",hFx:"FX",hHud:"HUD",reroll:"Re-roll glitch",lucky:"Surprise me",reset:"Reset",
+ hudOn:"Overlay HUD frame and text",caption:"Caption",kanji:"Vertical sign",lang:"日本語",
+ aStage:"Preview",aRack:"Effect settings",aView:"Processed result",aFmt:"Photo format",
+ p_neo:"Neon District",p_acid:"Acid Rain",p_ichi:"Night Market",p_holo:"Hologram",p_alert:"Red Alert",
+ s_tone:"Neon tint",s_ca:"RGB shift",s_glitch:"Glitch",s_scan:"Scanlines",s_bloom:"Glow",s_noise:"Noise",s_contrast:"Contrast",s_vig:"Vignette",
+ stSample:"Showing a sample image. You can also drag and drop or paste a file.",
+ stType:"Choose an image or video file.",stLoading:"Loading…",stPhoto:"Photo loaded ({0}). Adjust the colour and effects.",
+ stVideo:"Video loaded ({0}). Effects are applied live. Press Record video to export it.",
+ stBadImg:"This image format couldn't be read. Try a JPEG or PNG.",stBadVid:"This video couldn't be played here. Try an MP4 (H.264) file.",
+ stTapPlay:"Video loaded. Press Play to start it.",stExport:"Exporting…",stFail:"Export failed. Try again.",
+ stSaved:"Saved: {0}",stCancel:"Save cancelled.",stBusy:"A save prompt is already open. Wait a moment and try again.",
+ stHold:"Press and hold the result below to save it.",stRec:"Recording from the start of the clip. It stops at the end, or press Stop & save.",
+ stNoRec:"Video recording isn't supported in this browser. You can still save single frames.",stRecBusy:"Finish the recording first.",
+ cam:"Live camera",flip:"Flip camera",ready:"Your result is ready.",share:"Save / share",stReady:"Done. Use Save / share below.",
+ stCamAsk:"Opening camera…",stCam:"Camera is live. Effects are applied as you shoot. Press Record video or Save frame.",
+ stNoCam:"Couldn't open the camera. Allow camera access for this site and try again.",stRecLive:"Recording. Press Stop & save when you're done."},
+ja:{intro:"写真や動画をえらぶと、ネオンとグリッチの夜に変わります。すべて端末の中だけで加工されます。",
+ choose:"写真・動画をえらぶ",original:"元の映像",play:"再生",pause:"一時停止",rec:"動画を録画",stop:"停止して保存",
+ savePhoto:"写真を保存",saveFrame:"この場面を保存",fallback:"この画面では直接保存できません。下の結果を長押し（パソコンは右クリック）して保存してください。",
+ hColor:"COLOR / 色調",hFx:"FX / 効果",hHud:"HUD / 文字と枠",reroll:"グリッチを振り直す",lucky:"おまかせ",reset:"リセット",
+ hudOn:"HUD枠と文字を重ねる",caption:"横の文字",kanji:"縦の文字",lang:"English",
+ aStage:"プレビュー",aRack:"加工の設定",aView:"加工後の映像",aFmt:"写真の保存形式",
+ p_neo:"電脳街",p_acid:"酸性雨",p_ichi:"夜市",p_holo:"ホログラム",p_alert:"赤色警報",
+ s_tone:"ネオン色",s_ca:"色ずれ",s_glitch:"グリッチ",s_scan:"走査線",s_bloom:"発光",s_noise:"ノイズ",s_contrast:"明暗差",s_vig:"周辺減光",
+ stSample:"サンプル画像を表示中。ドラッグ＆ドロップや貼り付けでも読み込めます。",
+ stType:"画像か動画のファイルをえらんでください。",stLoading:"読み込み中…",stPhoto:"写真を読み込みました（{0}）。色調と効果を調整してください。",
+ stVideo:"動画を読み込みました（{0}）。効果はリアルタイムでかかります。「動画を録画」で書き出せます。",
+ stBadImg:"この画像形式は読み込めませんでした。JPEGかPNGでお試しください。",stBadVid:"この動画は再生できませんでした。MP4（H.264）でお試しください。",
+ stTapPlay:"動画を読み込みました。「再生」を押してください。",stExport:"書き出し中…",stFail:"書き出しに失敗しました。もう一度お試しください。",
+ stSaved:"保存しました：{0}",stCancel:"保存をキャンセルしました。",stBusy:"保存の確認が開いています。少し待ってからもう一度押してください。",
+ stHold:"下の結果を長押しして保存してください。",stRec:"動画の最初から録画中。最後まで再生すると止まります。途中で止めるには「停止して保存」。",
+ stNoRec:"このブラウザは動画の録画に対応していません。場面ごとの保存は使えます。",stRecBusy:"先に録画を終えてください。",
+ cam:"ライブカメラ",flip:"カメラ切替",ready:"できあがりました。",share:"保存・共有",stReady:"完了。下の「保存・共有」を押してください。",
+ stCamAsk:"カメラを起動中…",stCam:"カメラ起動中。撮りながら効果がかかります。「動画を録画」か「この場面を保存」を押してください。",
+ stNoCam:"カメラを開けませんでした。このサイトのカメラ使用を許可して、もう一度お試しください。",stRecLive:"録画中。終わったら「停止して保存」を押してください。"}
+};
+var lang="en";try{var sl=localStorage.getItem("dennou-lang");if(sl==="ja"||sl==="en")lang=sl;}catch(e){}
+function t(k,a){var s=T[lang][k]||T.en[k]||k;return a===undefined?s:s.replace("{0}",a);}
+
+var PRESETS=[
+  {id:"neo",  c:["#12063a","#e0218a","#6ff6ff"]},
+  {id:"acid", c:["#031a1c","#0f8f7a","#d8ff5a"]},
+  {id:"ichi", c:["#1a0530","#ff5a36","#ffe38a"]},
+  {id:"holo", c:["#0a0a3c","#5b6bff","#ff9cf5"]},
+  {id:"alert",c:["#140008","#d1002c","#ffd0b0"]}
+];
+var SLIDERS=[["tone",70],["ca",45],["glitch",35],["scan",40],["bloom",55],["noise",25],["contrast",40],["vig",50]];
+var state={preset:"neo",seed:7,hud:true,caption:"NEO-TOKYO // SECTOR 07",kanji:"電脳都市",fmt:"jpg"};
+SLIDERS.forEach(function(s){state[s[0]]=s[1];});
+
+var $=function(id){return document.getElementById(id);};
+var view=$("view"),vctx=view.getContext("2d",{willReadFrequently:true});
+var full=null,prev=document.createElement("canvas"),pctx=prev.getContext("2d",{willReadFrequently:true});
+var showOrig=false,video=null,videoUrl=null,dirty=false,rec=null,recStart=0,stKey="stSample",stArg;
+var s1=document.createElement("canvas"),s2=document.createElement("canvas");
+var standalone=!window.claude,facing="environment",lastBlob=null,lastName="";
+
+function hex(h){return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)];}
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;var t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function setStatus(k,a){stKey=k;stArg=a;$("status").textContent=t(k,a);}
+function z(v){return(v<10?"0":"")+v;}
+function stampName(ext){var d=new Date();return"dennou-"+d.getFullYear()+z(d.getMonth()+1)+z(d.getDate())+"-"+z(d.getHours())+z(d.getMinutes())+z(d.getSeconds())+"."+ext;}
+
+/* ---------- effect pipeline: src canvas -> out canvas ---------- */
+function render(src,out,p,seed){
+  var w=src.width,h=src.height;if(out.width!==w||out.height!==h){out.width=w;out.height=h;}
+  var ctx=out.getContext("2d",{willReadFrequently:true});
+  ctx.globalCompositeOperation="source-over";ctx.globalAlpha=1;
+  ctx.drawImage(src,0,0);
+  var img=ctx.getImageData(0,0,w,h),d=img.data,s=new Uint8ClampedArray(d);
+  var pr=PRESETS.filter(function(x){return x.id===p.preset;})[0]||PRESETS[0];
+  var c0=hex(pr.c[0]),c1=hex(pr.c[1]),c2=hex(pr.c[2]);
+  var mr=new Uint8Array(256),mg=new Uint8Array(256),mb=new Uint8Array(256),cl=new Uint8Array(256),i,tt,a,b;
+  var con=1+p.contrast/100*0.8;
+  for(i=0;i<256;i++){
+    tt=i/255;if(tt<.5){a=c0;b=c1;tt*=2;}else{a=c1;b=c2;tt=(tt-.5)*2;}
+    mr[i]=a[0]+(b[0]-a[0])*tt;mg[i]=a[1]+(b[1]-a[1])*tt;mb[i]=a[2]+(b[2]-a[2])*tt;
+    cl[i]=Math.max(0,Math.min(255,(i-128)*con+128));
+  }
+  var k=p.tone/100,ik=1-k,ca=Math.round(p.ca/100*w*0.012),g=p.glitch/100;
+  var R=rng(seed*9973+11),shift=new Int32Array(h),n,y0,bh,sh,y,x;
+  n=Math.floor(g*14);
+  for(i=0;i<n;i++){y0=Math.floor(R()*h);bh=Math.max(1,Math.floor(h*(0.006+R()*0.07)));sh=Math.round((R()-.5)*w*0.16*g);
+    for(y=y0;y<Math.min(h,y0+bh);y++)shift[y]=sh;}
+  var per=Math.max(2,Math.round(w/380)),half=per/2,sc=1-p.scan/100*0.45,vig=p.vig/100*0.85,nz=p.noise/100*60;
+  var dx2=new Float32Array(w);for(x=0;x<w;x++){tt=x/w-.5;dx2[x]=tt*tt*2;}
+  var ns=(Math.imul(seed+1,2654435761))>>>0||1;
+  for(y=0;y<h;y++){
+    var row=y*w,shy=shift[y],lf=(y%per<half)?1:sc,ty=y/h-.5,dy2=ty*ty*2;
+    for(x=0;x<w;x++){
+      var bx=x+shy;if(bx<0)bx+=w;else if(bx>=w)bx-=w;
+      var xr=bx+ca;if(xr>=w)xr=w-1;var xb=bx-ca;if(xb<0)xb=0;
+      var r=cl[s[(row+xr)*4]],gg=cl[s[(row+bx)*4+1]],bl=cl[s[(row+xb)*4+2]];
+      var l=(r*77+gg*150+bl*29)>>8;
+      r=r*ik+mr[l]*k;gg=gg*ik+mg[l]*k;bl=bl*ik+mb[l]*k;
+      var dd=dx2[x]+dy2,f=lf*(1-vig*dd*dd*1.6);if(f<0)f=0;
+      ns^=ns<<13;ns^=ns>>>17;ns^=ns<<5;var nn=((ns>>>0)/4294967296-.5)*nz;
+      var o=(row+x)*4;d[o]=r*f+nn;d[o+1]=gg*f+nn;d[o+2]=bl*f+nn;d[o+3]=255;
+    }
+  }
+  ctx.putImageData(img,0,0);
+
+  /* glow: blurred highlights screened back on (no ctx.filter, works on iOS) */
+  if(p.bloom>0){
+    var w1=Math.max(8,w>>2),h1=Math.max(8,h>>2),w2=Math.max(4,w>>4),h2=Math.max(4,h>>4);
+    if(s1.width!==w1||s1.height!==h1){s1.width=w1;s1.height=h1;}
+    if(s2.width!==w2||s2.height!==h2){s2.width=w2;s2.height=h2;}
+    var a1=s1.getContext("2d"),a2=s2.getContext("2d");
+    a1.imageSmoothingQuality=a2.imageSmoothingQuality=ctx.imageSmoothingQuality="high";
+    a1.globalCompositeOperation="source-over";a1.drawImage(out,0,0,w1,h1);
+    a1.globalCompositeOperation="multiply";a1.drawImage(s1,0,0);
+    a2.drawImage(s1,0,0,w2,h2);
+    a1.globalCompositeOperation="source-over";a1.drawImage(s2,0,0,w1,h1);
+    ctx.globalCompositeOperation="screen";ctx.globalAlpha=p.bloom/100*0.9;
+    ctx.drawImage(s1,0,0,w,h);ctx.globalAlpha=1;ctx.globalCompositeOperation="source-over";
+  }
+  /* glitch colour slabs */
+  n=Math.floor(g*6);ctx.globalCompositeOperation="screen";
+  for(i=0;i<n;i++){ctx.fillStyle=R()<.5?"rgba(255,46,136,.32)":"rgba(46,242,255,.28)";
+    var gw=w*(0.08+R()*0.45);ctx.fillRect(R()*(w-gw),R()*h,gw,Math.max(1,h*(0.003+R()*0.012)));}
+  ctx.globalCompositeOperation="source-over";
+  if(p.hud)hud(ctx,w,h,p);
+}
+
+function hud(ctx,w,h,p){
+  var u=Math.min(w,h)/100,m=u*4,L=u*9,i;
+  ctx.save();ctx.lineWidth=Math.max(1,u*.45);ctx.strokeStyle="#2ef2ff";ctx.shadowColor="#2ef2ff";ctx.shadowBlur=u*1.5;
+  ctx.beginPath();
+  ctx.moveTo(m,m+L);ctx.lineTo(m,m);ctx.lineTo(m+L,m);
+  ctx.moveTo(w-m-L,m);ctx.lineTo(w-m,m);ctx.lineTo(w-m,m+L);
+  ctx.moveTo(w-m,h-m-L);ctx.lineTo(w-m,h-m);ctx.lineTo(w-m-L,h-m);
+  ctx.moveTo(m+L,h-m);ctx.lineTo(m,h-m);ctx.lineTo(m,h-m-L);
+  ctx.stroke();
+  ctx.textBaseline="top";ctx.font=(u*3.2)+'px "Share Tech Mono",ui-monospace,monospace';
+  ctx.shadowColor="#ff2e88";ctx.fillStyle="#ff2e88";
+  ctx.beginPath();ctx.arc(m+u*3,m+u*4.1,u*1.1,0,7);ctx.fill();
+  ctx.fillText("REC",m+u*5.2,m+u*2.6);
+  ctx.shadowColor="#2ef2ff";ctx.fillStyle="#eaffff";
+  if(p.caption)ctx.fillText(p.caption,m+u*2,h-m-u*6);
+  var dt=new Date();
+  var stamp=dt.getFullYear()+"."+z(dt.getMonth()+1)+"."+z(dt.getDate())+"  ISO 3200  F1.4";
+  ctx.textAlign="right";ctx.font=(u*2.4)+'px "Share Tech Mono",ui-monospace,monospace';
+  ctx.fillText(stamp,w-m-u*2,h-m-u*5);
+  ctx.shadowBlur=0;var R=rng(p.seed+3),bx=w-m-u*2;
+  for(i=0;i<22;i++){var bw=u*(0.25+R()*0.7);bx-=bw;ctx.fillRect(bx,h-m-u*9.5,bw*0.6,u*3);bx-=u*.25;}
+  if(p.kanji){
+    var ch=Array.from(p.kanji),fs=u*6.2,px=w-m-u*2-fs*1.3,py=m+u*3,bh2=fs*1.12*ch.length+fs*.3;
+    ctx.fillStyle="rgba(255,46,136,.88)";ctx.shadowColor="#ff2e88";ctx.shadowBlur=u*3;
+    ctx.fillRect(px,py,fs*1.3,bh2);ctx.shadowBlur=0;
+    ctx.fillStyle="#fff7fb";ctx.textAlign="center";ctx.font=fs+'px "DotGothic16","Hiragino Kaku Gothic ProN",sans-serif';
+    ch.forEach(function(c,j){ctx.fillText(c,px+fs*.65,py+fs*.18+j*fs*1.12);});
+  }
+  ctx.restore();
+}
+
+/* ---------- drawing ---------- */
+function paint(seed){
+  if(!prev.width)return;
+  if(showOrig){if(view.width!==prev.width||view.height!==prev.height){view.width=prev.width;view.height=prev.height;}vctx.drawImage(prev,0,0);}
+  else render(prev,view,state,seed);
+}
+var queued=false;
+function draw(){
+  if(video){dirty=true;return;}
+  if(queued)return;queued=true;requestAnimationFrame(function(){queued=false;if(!video)paint(state.seed);});
+}
+function tick(){
+  if(!video)return;
+  if(video.readyState>=2&&(!video.paused||dirty)){
+    if(video._live&&!rec&&video.videoWidth&&(video.videoWidth!==video._w||video.videoHeight!==video._h))sizePrev(video);   /* phone rotated */
+    dirty=false;pctx.drawImage(video,0,0,prev.width,prev.height);
+    paint(state.seed+Math.floor(video.currentTime*8));   /* glitch flickers 8x a second */
+  }
+  if(rec){var el=Math.floor((performance.now()-recStart)/1000);$("rec").textContent="■ "+t("stop")+" "+Math.floor(el/60)+":"+z(el%60);}
+  requestAnimationFrame(tick);
+}
+
+function fit(src,max,sw,sh){sw=sw||src.width;sh=sh||src.height;var k=Math.min(1,max/Math.max(sw,sh));
+  var c=document.createElement("canvas");c.width=Math.max(2,Math.round(sw*k));c.height=Math.max(2,Math.round(sh*k));
+  var x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(src,0,0,c.width,c.height);return c;}
+function sizePrev(v){var k=Math.min(1,720/Math.max(v.videoWidth,v.videoHeight));   /* 720px long side keeps live effects smooth */
+  v._w=v.videoWidth;v._h=v.videoHeight;prev.width=Math.max(2,Math.round(v.videoWidth*k/2)*2);prev.height=Math.max(2,Math.round(v.videoHeight*k/2)*2);}
+function dropVideo(){if(video){video.pause();if(video._stream)video._stream.getTracks().forEach(function(tr){tr.stop();});video.srcObject=null;video.remove();video=null;}if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=null;}}
+function setSource(src,sample){dropVideo();full=fit(src,2400);var p=fit(full,1000);prev.width=p.width;prev.height=p.height;pctx.drawImage(p,0,0);
+  $("sampleTag").hidden=!sample;$("fallback").hidden=true;modeUI();draw();}
+
+function loadFile(f){
+  if(rec){setStatus("stRecBusy");return;}
+  if(!f){return;}
+  if(f.type.indexOf("video/")===0){loadVideo(f);return;}
+  if(f.type.indexOf("image/")!==0){setStatus("stType");return;}
+  setStatus("stLoading");
+  var url=URL.createObjectURL(f),im=new Image();
+  im.onload=function(){setSource(fit(im,2400,im.naturalWidth,im.naturalHeight),false);URL.revokeObjectURL(url);
+    setStatus("stPhoto",full.width+"×"+full.height);};
+  im.onerror=function(){URL.revokeObjectURL(url);setStatus("stBadImg");};
+  im.src=url;
+}
+function loadVideo(f){
+  setStatus("stLoading");
+  var v=document.createElement("video"),url=URL.createObjectURL(f);
+  v.className="ghost";v.muted=true;v.loop=true;v.playsInline=true;v.setAttribute("playsinline","");v.preload="auto";
+  v.onerror=function(){URL.revokeObjectURL(url);v.remove();setStatus("stBadVid");};
+  v.onloadedmetadata=function(){
+    if(!v.videoWidth){v.onerror();return;}
+    dropVideo();video=v;videoUrl=url;full=null;
+    sizePrev(v);
+    $("sampleTag").hidden=true;$("fallback").hidden=true;dirty=true;modeUI();
+    var dur=isFinite(v.duration)?Math.floor(v.duration/60)+":"+z(Math.floor(v.duration%60)):"";
+    setStatus("stVideo",v.videoWidth+"×"+v.videoHeight+(dur?", "+dur:""));
+    v.play().catch(function(){setStatus("stTapPlay");});
+    requestAnimationFrame(tick);
+  };
+  v.onplay=v.onpause=function(){modeUI();};
+  v.onseeked=function(){dirty=true;};
+  document.body.appendChild(v);v.src=url;v.load();
+}
+
+/* sample scene so the app opens in a working state */
+function sample(){
+  var c=document.createElement("canvas");c.width=1200;c.height=800;var x=c.getContext("2d"),R=rng(42),i,j;
+  var sky=x.createLinearGradient(0,0,0,560);sky.addColorStop(0,"#27324a");sky.addColorStop(.6,"#6b6f86");sky.addColorStop(1,"#d9a27a");
+  x.fillStyle=sky;x.fillRect(0,0,1200,800);
+  x.fillStyle="#f3e6cf";x.beginPath();x.arc(880,170,46,0,7);x.fill();
+  for(var layer=0;layer<3;layer++){
+    var bx=-20,base=560,tone=["#4a4f66","#2f3346","#191b28"][layer];
+    while(bx<1220){var bw=50+R()*110,bh=120+R()*(140+layer*110);x.fillStyle=tone;x.fillRect(bx,base-bh,bw,bh+10);
+      if(layer>0)for(i=bx+8;i<bx+bw-10;i+=16)for(j=base-bh+12;j<base-14;j+=20)
+        if(R()<.42){x.fillStyle=R()<.8?"#ffd58a":"#bfe6ff";x.fillRect(i,j,8,10);}
+      if(layer===2&&R()<.5){x.fillStyle=R()<.5?"#ff6a5a":"#7ad7ff";x.fillRect(bx+bw*.2,base-bh*.55,bw*.6,26);}
+      bx+=bw+4+R()*14;}
+  }
+  var st=x.createLinearGradient(0,560,0,800);st.addColorStop(0,"#15161f");st.addColorStop(1,"#3a3b48");x.fillStyle=st;x.fillRect(0,560,1200,240);
+  for(i=0;i<70;i++){x.fillStyle="rgba(255,"+Math.floor(170+R()*70)+","+Math.floor(110+R()*120)+","+(0.08+R()*0.25)+")";
+    x.fillRect(R()*1200,565+R()*230,3+R()*10,20+R()*90);}
+  x.fillStyle="#d8d8e0";for(i=0;i<6;i++)x.fillRect(560+i*4,600+i*36,60-i*2,10+i*2);
+  return c;
+}
+
+/* ---------- controls ---------- */
+var presetBox=$("presets");
+PRESETS.forEach(function(p){var b=document.createElement("button");b.type="button";b.className="preset";b.id="preset-"+p.id;
+  b.innerHTML='<i style="background:linear-gradient(90deg,'+p.c.join(",")+')"></i><span></span>';
+  b.addEventListener("click",function(){state.preset=p.id;sync();draw();});presetBox.appendChild(b);});
+var sliderBox=$("sliders");
+SLIDERS.forEach(function(s){var r=document.createElement("div");r.className="row";
+  r.innerHTML='<label for="sl-'+s[0]+'"></label><input type="range" min="0" max="100" id="sl-'+s[0]+'"><output for="sl-'+s[0]+'"></output>';
+  var inp=r.children[1],out=r.children[2];
+  inp.addEventListener("input",function(){state[s[0]]=+inp.value;out.textContent=inp.value;draw();});sliderBox.appendChild(r);});
+function sync(){
+  PRESETS.forEach(function(p){$("preset-"+p.id).setAttribute("aria-pressed",String(p.id===state.preset));});
+  SLIDERS.forEach(function(s){$("sl-"+s[0]).value=state[s[0]];$("sl-"+s[0]).nextSibling.textContent=state[s[0]];});
+  $("hud").checked=state.hud;$("fmtJpg").setAttribute("aria-pressed",String(state.fmt==="jpg"));$("fmtPng").setAttribute("aria-pressed",String(state.fmt==="png"));
+}
+function modeUI(){
+  var isV=!!video,live=isV&&!!video._live;$("play").hidden=!isV||live;$("rec").hidden=!isV;$("flip").hidden=!live;
+  $("cam").textContent="◉ "+t("cam");$("flip").textContent="⟲ "+t("flip");$("share").textContent=t("share");$("fallbackMsg").textContent=t(standalone?"ready":"fallback");
+  $("play").textContent=isV&&!video.paused?"❚❚ "+t("pause"):"▶ "+t("play");
+  if(!rec){$("rec").textContent="● "+t("rec");$("rec").classList.remove("on");}else $("rec").classList.add("on");
+  $("save").textContent=t(isV?"saveFrame":"savePhoto");
+}
+function applyLang(){
+  document.documentElement.lang=lang;
+  Array.prototype.forEach.call(document.querySelectorAll("[data-t]"),function(e){e.textContent=t(e.getAttribute("data-t"));});
+  $("lang").textContent=t("lang");
+  $("stage").setAttribute("aria-label",t("aStage"));$("rack").setAttribute("aria-label",t("aRack"));
+  view.setAttribute("aria-label",t("aView"));$("fmtGroup").setAttribute("aria-label",t("aFmt"));
+  PRESETS.forEach(function(p){$("preset-"+p.id).lastChild.textContent=t("p_"+p.id);});
+  SLIDERS.forEach(function(s){$("sl-"+s[0]).previousSibling.textContent=t("s_"+s[0]);});
+  $("status").textContent=t(stKey,stArg);modeUI();
+}
+$("lang").addEventListener("click",function(){lang=lang==="en"?"ja":"en";try{localStorage.setItem("dennou-lang",lang);}catch(e){}applyLang();});
+$("file").addEventListener("change",function(e){loadFile(e.target.files[0]);e.target.value="";});
+var frame=$("frame");
+["dragenter","dragover"].forEach(function(n){frame.addEventListener(n,function(e){e.preventDefault();frame.classList.add("drag");});});
+["dragleave","drop"].forEach(function(n){frame.addEventListener(n,function(e){e.preventDefault();frame.classList.remove("drag");});});
+frame.addEventListener("drop",function(e){if(e.dataTransfer.files[0])loadFile(e.dataTransfer.files[0]);});
+document.addEventListener("paste",function(e){var it=(e.clipboardData||{}).files;if(it&&it[0])loadFile(it[0]);});
+$("compare").addEventListener("click",function(){showOrig=!showOrig;this.setAttribute("aria-pressed",String(showOrig));draw();});
+$("play").addEventListener("click",function(){if(!video||rec)return;if(video.paused)video.play().catch(function(){});else video.pause();});
+$("reroll").addEventListener("click",function(){state.seed=(state.seed*31+17)%100000;draw();});
+$("reset").addEventListener("click",function(){SLIDERS.forEach(function(s){state[s[0]]=s[1];});state.preset="neo";state.seed=7;sync();draw();});
+$("lucky").addEventListener("click",function(){var R=Math.random;state.preset=PRESETS[Math.floor(R()*PRESETS.length)].id;state.seed=Math.floor(R()*99999);
+  state.tone=55+Math.round(R()*40);state.ca=20+Math.round(R()*60);state.glitch=15+Math.round(R()*60);state.scan=20+Math.round(R()*50);
+  state.bloom=35+Math.round(R()*50);state.noise=10+Math.round(R()*40);sync();draw();});
+$("hud").addEventListener("change",function(){state.hud=this.checked;draw();});
+$("caption").addEventListener("input",function(){state.caption=this.value;draw();});
+$("kanji").addEventListener("input",function(){state.kanji=this.value;draw();});
+$("fmtJpg").addEventListener("click",function(){state.fmt="jpg";sync();});
+$("fmtPng").addEventListener("click",function(){state.fmt="png";sync();});
+
+/* ---------- save ---------- */
+var dlP=(window.claude&&window.claude.use)?window.claude.use("downloads").catch(function(){return null;}):Promise.resolve(null);
+function deliver(blob,name,isVideo){
+  var fb=function(){var im=$("fallbackImg"),vd=$("fallbackVid"),el=isVideo?vd:im;
+    [im,vd].forEach(function(e){if(e.src){URL.revokeObjectURL(e.src);e.removeAttribute("src");}e.hidden=true;});
+    el.src=URL.createObjectURL(blob);el.hidden=false;lastBlob=blob;lastName=name;$("share").hidden=!standalone;$("fallback").hidden=false;setStatus(standalone?"stReady":"stHold");};
+  dlP.then(function(dl){
+    if(!dl){fb();return;}
+    dl.save({filename:name,data:blob}).then(function(){setStatus("stSaved",name);})
+      .catch(function(e){var c=e&&e.code;if(c==="declined")setStatus("stCancel");else if(c==="rate_limited")setStatus("stBusy");else fb();});
+  });
+}
+$("save").addEventListener("click",function(){
+  var src=full,seed=state.seed;
+  if(video){if(video.readyState<2)return;src=fit(video,2400,video.videoWidth,video.videoHeight);seed+=Math.floor(video.currentTime*8);}
+  if(!src)return;setStatus("stExport");
+  var out=document.createElement("canvas");render(src,out,state,seed);
+  out.toBlob(function(blob){if(!blob){setStatus("stFail");return;}deliver(blob,stampName(state.fmt),false);},
+    state.fmt==="png"?"image/png":"image/jpeg",0.93);
+});
+
+/* ---------- video recording: canvas stream + the clip's own audio ---------- */
+var actx=null;
+function pickMime(){var c=["video/mp4;codecs=avc1.42E01E,mp4a.40.2","video/mp4","video/webm;codecs=vp9,opus","video/webm;codecs=vp8,opus","video/webm"];
+  for(var i=0;i<c.length;i++)if(MediaRecorder.isTypeSupported(c[i]))return c[i];return"";}
+function stopRec(){if(rec&&rec.state!=="inactive")rec.stop();}
+$("rec").addEventListener("click",function(){
+  if(!video)return;
+  if(rec){stopRec();return;}
+  if(!window.MediaRecorder||!view.captureStream){setStatus("stNoRec");return;}
+  var mime=pickMime(),stream;
+  try{stream=view.captureStream(30);}catch(e){setStatus("stNoRec");return;}
+  var v=video;
+  if(v._live){v._stream.getAudioTracks().forEach(function(tr){stream.addTrack(tr.clone());});}   /* microphone */
+  else try{  /* route the clip's sound into the recording (and the speakers) */
+    actx=actx||new (window.AudioContext||window.webkitAudioContext)();if(actx.state==="suspended")actx.resume();
+    if(!v._node){v._node=actx.createMediaElementSource(v);v._node.connect(actx.destination);}
+    var dest=actx.createMediaStreamDestination();v._node.connect(dest);v._dest=dest;
+    dest.stream.getAudioTracks().forEach(function(tr){stream.addTrack(tr);});
+  }catch(e){}
+  var chunks=[],r;
+  try{r=new MediaRecorder(stream,mime?{mimeType:mime,videoBitsPerSecond:6000000}:undefined);}catch(e){setStatus("stNoRec");return;}
+  r.ondataavailable=function(e){if(e.data&&e.data.size)chunks.push(e.data);};
+  r.onstop=function(){
+    rec=null;v.removeEventListener("ended",stopRec);
+    try{if(v._dest){v._node.disconnect(v._dest);v._dest=null;}}catch(e){}
+    stream.getTracks().forEach(function(tr){tr.stop();});
+    if(!v._live){v.muted=true;v.loop=true;if(video===v)v.play().catch(function(){});}modeUI();
+    var type=r.mimeType||mime||"video/webm",blob=new Blob(chunks,{type:type});
+    if(!blob.size){setStatus("stFail");return;}
+    deliver(blob,stampName(type.indexOf("mp4")>=0?"mp4":"webm"),true);
+  };
+  showOrig=false;$("compare").setAttribute("aria-pressed","false");rec=r;recStart=performance.now();
+  if(v._live){modeUI();setStatus("stRecLive");try{r.start();}catch(e){rec=null;modeUI();setStatus("stNoRec");}return;}
+  v.pause();v.loop=false;v.muted=false;v.currentTime=0;v.addEventListener("ended",stopRec);modeUI();setStatus("stRec");
+  v.play().then(function(){try{r.start();}catch(e){rec=null;modeUI();setStatus("stNoRec");}},
+    function(){v.muted=true;v.play().then(function(){r.start();},function(){rec=null;modeUI();setStatus("stFail");});});
+});
+
+/* ---------- live camera (only when the page runs as its own site; needs HTTPS) ---------- */
+function startCam(){
+  if(rec){setStatus("stRecBusy");return;}
+  setStatus("stCamAsk");
+  var vc={facingMode:facing,width:{ideal:1280},height:{ideal:720}},md=navigator.mediaDevices;
+  md.getUserMedia({video:vc,audio:true}).catch(function(){return md.getUserMedia({video:vc});}).then(function(stream){
+    var v=document.createElement("video");v.className="ghost";v.muted=true;v.playsInline=true;v.setAttribute("playsinline","");
+    v._live=true;v._stream=stream;v.srcObject=stream;
+    v.onloadedmetadata=function(){
+      if(video===v)return;dropVideo();video=v;full=null;sizePrev(v);
+      $("sampleTag").hidden=true;$("fallback").hidden=true;dirty=true;modeUI();setStatus("stCam");
+      v.play().catch(function(){});requestAnimationFrame(tick);
+    };
+    document.body.appendChild(v);
+  }).catch(function(){setStatus("stNoCam");});
+}
+$("cam").addEventListener("click",startCam);
+$("flip").addEventListener("click",function(){if(rec){setStatus("stRecBusy");return;}facing=facing==="environment"?"user":"environment";startCam();});
+$("share").addEventListener("click",function(){
+  if(!lastBlob)return;
+  try{var f=new File([lastBlob],lastName,{type:lastBlob.type.split(";")[0]});
+    if(navigator.canShare&&navigator.canShare({files:[f]})){navigator.share({files:[f]}).catch(function(){});return;}}catch(e){}
+  var a=document.createElement("a");a.href=URL.createObjectURL(lastBlob);a.download=lastName;document.body.appendChild(a);a.click();a.remove();
+});
+$("cam").hidden=!(standalone&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
+
+sync();applyLang();setSource(sample(),true);
+if(document.fonts&&document.fonts.load){Promise.all([document.fonts.load('16px "Share Tech Mono"'),document.fonts.load('16px "DotGothic16"',"電脳都市")]).then(draw,function(){});}
+})();
+</script>
+</body>
+</html>
