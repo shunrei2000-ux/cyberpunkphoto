@@ -122,9 +122,9 @@ body.cam #fallback{position:fixed;left:12px;right:12px;bottom:calc(env(safe-area
         </div>
       </div>
       <div class="bar">
+        <button type="button" id="cam" hidden></button>
         <label class="btn primary"><span data-t="choose"></span><input type="file" id="file" accept="image/*,video/*"></label>
         <button type="button" id="compare" aria-pressed="false" data-t="original"></button>
-        <button type="button" id="cam" hidden></button>
         <button type="button" id="flip" hidden></button>
         <button type="button" id="play" hidden></button>
         <button type="button" id="rec" hidden></button>
@@ -349,8 +349,8 @@ function draw(){
 function tick(){
   if(!video)return;
   if(video.readyState>=2&&(!video.paused||dirty)){
-    if(video._live&&!rec&&video.videoWidth&&(video.videoWidth!==video._w||video.videoHeight!==video._h))sizePrev(video);   /* phone rotated */
-    dirty=false;pctx.drawImage(video,0,0,prev.width,prev.height);
+    if(video._live&&!rec&&video.videoWidth&&cropRect(video).join()!==video._key)sizePrev(video);   /* phone rotated or screen resized */
+    dirty=false;var cr=video._crop;pctx.drawImage(video,cr[0],cr[1],cr[2],cr[3],0,0,prev.width,prev.height);
     paint(state.seed+Math.floor(video.currentTime*8));   /* glitch flickers 8x a second */
   }
   if(rec){var el=Math.floor((performance.now()-recStart)/1000),tm=Math.floor(el/60)+":"+z(el%60);$("rec").textContent="■ "+t("stop")+" "+tm;$("camTime").textContent="● "+tm;}
@@ -360,8 +360,14 @@ function tick(){
 function fit(src,max,sw,sh){sw=sw||src.width;sh=sh||src.height;var k=Math.min(1,max/Math.max(sw,sh));
   var c=document.createElement("canvas");c.width=Math.max(2,Math.round(sw*k));c.height=Math.max(2,Math.round(sh*k));
   var x=c.getContext("2d");x.imageSmoothingQuality="high";x.drawImage(src,0,0,c.width,c.height);return c;}
-function sizePrev(v){var k=Math.min(1,720/Math.max(v.videoWidth,v.videoHeight));   /* 720px long side keeps live effects smooth */
-  v._w=v.videoWidth;v._h=v.videoHeight;prev.width=Math.max(2,Math.round(v.videoWidth*k/2)*2);prev.height=Math.max(2,Math.round(v.videoHeight*k/2)*2);}
+/* in camera mode the live picture is centre-cropped to the screen's shape so it fills the display edge to edge */
+function cropRect(v){var vw=v.videoWidth,vh=v.videoHeight;
+  if(!v._live||!document.body.classList.contains("cam")||!window.innerHeight)return[0,0,vw,vh];
+  var ar=window.innerWidth/window.innerHeight,cw,ch;
+  if(vw/vh>ar){cw=Math.round(vh*ar);return[Math.round((vw-cw)/2),0,cw,vh];}
+  ch=Math.round(vw/ar);return[0,Math.round((vh-ch)/2),vw,ch];}
+function sizePrev(v){var c=cropRect(v),k=Math.min(1,(v._live?900:720)/Math.max(c[2],c[3]));   /* capped so live effects stay smooth */
+  v._key=c.join();v._crop=c;prev.width=Math.max(2,Math.round(c[2]*k/2)*2);prev.height=Math.max(2,Math.round(c[3]*k/2)*2);}
 function dropVideo(){if(video){video.pause();if(video._stream)video._stream.getTracks().forEach(function(tr){tr.stop();});video.srcObject=null;video.remove();video=null;}if(videoUrl){URL.revokeObjectURL(videoUrl);videoUrl=null;}}
 function setSource(src,sample){dropVideo();full=fit(src,2400);var p=fit(full,1000);prev.width=p.width;prev.height=p.height;pctx.drawImage(p,0,0);
   $("sampleTag").hidden=!sample;$("fallback").hidden=true;modeUI();draw();}
@@ -490,7 +496,8 @@ function deliver(blob,name,isVideo){
 }
 $("save").addEventListener("click",function(){
   var src=full,seed=state.seed;
-  if(video){if(video.readyState<2)return;src=fit(video,2400,video.videoWidth,video.videoHeight);seed+=Math.floor(video.currentTime*8);}
+  if(video){if(video.readyState<2)return;var cr=video._crop,cc=document.createElement("canvas");cc.width=cr[2];cc.height=cr[3];
+    cc.getContext("2d").drawImage(video,cr[0],cr[1],cr[2],cr[3],0,0,cr[2],cr[3]);src=fit(cc,2400);seed+=Math.floor(video.currentTime*8);}
   if(!src)return;setStatus("stExport");
   var out=document.createElement("canvas");render(src,out,state,seed);
   out.toBlob(function(blob){if(!blob){setStatus("stFail");return;}deliver(blob,stampName(state.fmt),false);},
@@ -539,14 +546,13 @@ $("rec").addEventListener("click",function(){
 function startCam(){
   if(rec){setStatus("stRecBusy");return;}
   setStatus("stCamAsk");
-  var vc={facingMode:facing,width:{ideal:1280},height:{ideal:720}},md=navigator.mediaDevices;
+  var vc={facingMode:facing,width:{ideal:1920},height:{ideal:1080}},md=navigator.mediaDevices;
   md.getUserMedia({video:vc,audio:true}).catch(function(){return md.getUserMedia({video:vc});}).then(function(stream){
     var v=document.createElement("video");v.className="ghost";v.muted=true;v.playsInline=true;v.setAttribute("playsinline","");
     v._live=true;v._stream=stream;v.srcObject=stream;
     v.onloadedmetadata=function(){
-      if(video===v)return;dropVideo();video=v;full=null;sizePrev(v);
+      if(video===v)return;dropVideo();video=v;full=null;document.body.classList.add("cam");window.scrollTo(0,0);sizePrev(v);
       $("sampleTag").hidden=true;$("fallback").hidden=true;dirty=true;modeUI();setStatus("stCam");
-      document.body.classList.add("cam");window.scrollTo(0,0);
       try{if(navigator.wakeLock)navigator.wakeLock.request("screen").then(function(l){wake=l;},function(){});}catch(e){}
       v.play().catch(function(){});requestAnimationFrame(tick);
     };
@@ -573,6 +579,7 @@ $("share").addEventListener("click",function(){
   var a=document.createElement("a");a.href=URL.createObjectURL(lastBlob);a.download=lastName;document.body.appendChild(a);a.click();a.remove();
 });
 $("cam").hidden=!(standalone&&navigator.mediaDevices&&navigator.mediaDevices.getUserMedia);
+if(!$("cam").hidden){$("cam").classList.add("primary");$("file").parentNode.classList.remove("primary");}
 
 sync();applyLang();setSource(sample(),true);
 if(document.fonts&&document.fonts.load){Promise.all([document.fonts.load('16px "Share Tech Mono"'),document.fonts.load('16px "DotGothic16"',"電脳都市")]).then(draw,function(){});}
